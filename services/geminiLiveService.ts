@@ -4,11 +4,11 @@ import { createPcmBlob, decodeBase64, decodeAudioData } from "./audioUtils";
 
 const MODEL_NAME = 'gemini-2.5-flash-native-audio-preview-09-2025';
 const SYSTEM_INSTRUCTION = `
-You are a Malayalam-to-English translator.
-1. LISTEN to the user's audio.
-2. IF the user speaks MALAYALAM, translate it to English.
-3. IF the user speaks ENGLISH, do NOT translate it. Do not generate any output for English input.
-4. Output ONLY the translated text. Do not provide conversational filler.
+You are a specialized speech processor for a team speaking Malayalam, Hindi, and English.
+1. IF the user speaks MALAYALAM: Translate it to English.
+2. IF the user speaks HINDI: Transcribe it verbatim in Hindi (Devanagari script). DO NOT translate.
+3. IF the user speaks ENGLISH: Transcribe it verbatim in English. DO NOT translate.
+4. Output ONLY the final text. Do not provide conversational filler.
 `;
 
 export class GeminiLiveService {
@@ -76,6 +76,11 @@ export class GeminiLiveService {
           onclose: this.handleClose.bind(this),
         },
       });
+
+      // Catch initialization errors (e.g. Network Error, Invalid Key)
+      this.sessionPromise.catch((err) => {
+        this.handleError(new ErrorEvent('error', { message: err.message || 'Connection failed' }));
+      });
       
     } catch (err: any) {
       this.handleError(new ErrorEvent('error', { message: err.message }));
@@ -109,6 +114,8 @@ export class GeminiLiveService {
 
       this.sessionPromise!.then((session) => {
         session.sendRealtimeInput({ media: pcmBlob });
+      }).catch((err) => {
+          console.error("Error sending audio:", err);
       });
     };
 

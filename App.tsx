@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { GeminiLiveService } from './services/geminiLiveService';
 import { ConnectionState, TranscriptionItem } from './types';
 import Visualizer from './components/Visualizer';
+import HelpModal from './components/HelpModal';
 
 // Minimalist Icons
 const MicIcon = () => (
@@ -13,13 +14,25 @@ const MicOffIcon = () => (
 const TrashIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
 );
+const HelpIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+);
+
+const getEnvApiKey = () => {
+  try {
+    return process.env.API_KEY || '';
+  } catch (e) {
+    return '';
+  }
+};
 
 const App: React.FC = () => {
-  const [apiKey, setApiKey] = useState<string>(process.env.API_KEY || '');
+  const [apiKey, setApiKey] = useState<string>(getEnvApiKey());
   const [service, setService] = useState<GeminiLiveService | null>(null);
   const [connectionState, setConnectionState] = useState<ConnectionState>(ConnectionState.DISCONNECTED);
   const [transcripts, setTranscripts] = useState<TranscriptionItem[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [showHelp, setShowHelp] = useState(false);
   
   // Visualizer state
   const [inputLevel, setInputLevel] = useState(0);
@@ -58,6 +71,8 @@ const App: React.FC = () => {
       return () => {
         s.disconnect();
       };
+    } else {
+      setError("API Key not found. Please check your environment configuration.");
     }
   }, [apiKey]);
 
@@ -105,13 +120,22 @@ const App: React.FC = () => {
             </div>
           </div>
           
-          <button 
-            onClick={handleClear}
-            className="p-2 text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 rounded-full transition-all"
-            title="Clear chat"
-          >
-            <TrashIcon />
-          </button>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => setShowHelp(true)}
+              className="p-2 text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 rounded-full transition-all"
+              title="How to use"
+            >
+              <HelpIcon />
+            </button>
+            <button 
+              onClick={handleClear}
+              className="p-2 text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 rounded-full transition-all"
+              title="Clear chat"
+            >
+              <TrashIcon />
+            </button>
+          </div>
         </header>
 
         {/* Visualizer Area */}
@@ -178,6 +202,8 @@ const App: React.FC = () => {
         </div>
       </div>
       
+      <HelpModal isOpen={showHelp} onClose={() => setShowHelp(false)} />
+
       <div className="mt-6 flex flex-col items-center gap-1 text-center">
          <span className="text-[10px] font-semibold tracking-widest text-zinc-600 uppercase">Powered by Gemini Live</span>
       </div>

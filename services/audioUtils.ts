@@ -1,4 +1,4 @@
-import { Blob } from "@google/genai";
+import type { Blob } from "@google/genai";
 
 // Convert Float32 audio data to Int16 PCM and wrap in a Gemini-compatible Blob
 export function createPcmBlob(data: Float32Array): Blob {
