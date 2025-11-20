@@ -1,0 +1,7 @@
+{
+  "name": "Malayalam Live Translator",
+  "description": "Real-time bi-directional voice translator between English and Malayalam using Gemini Live API.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
