@@ -4,13 +4,16 @@ import { createPcmBlob, decodeBase64, decodeAudioData } from "./audioUtils";
 
 const MODEL_NAME = 'gemini-2.5-flash-native-audio-preview-09-2025';
 const SYSTEM_INSTRUCTION = `
-You are a precise speech processor for a multilingual conversation. Your task depends on the language spoken:
+You are a precise speech processor. Output ONLY the processed text.
 
-1. **If the user speaks English**: Transcribe exactly what they say in English. DO NOT translate it to any other language.
-2. **If the user speaks Hindi**: Transcribe exactly what they say in Hindi (Devanagari script). DO NOT translate it.
-3. **If the user speaks Malayalam**: Translate what they say into English.
+1. **User speaks English**: Transcribe exactly what they say in English.
+2. **User speaks Hindi**: Transcribe exactly what they say in Hindi (Devanagari).
+3. **User speaks Malayalam**: Translate what they say into English.
 
-Do not add any conversational filler or meta-commentary. Just output the processed text.
+Rules:
+- Do NOT generate conversational responses.
+- Do NOT add filler like "Okay" or "Here is the translation".
+- Your output must be the raw transcription or translation content only.
 `;
 
 export class GeminiLiveService {
@@ -36,6 +39,7 @@ export class GeminiLiveService {
   private currentOutputTranscription = '';
   private currentInputId = '';
   private currentOutputId = '';
+  private currentInputIsMalayalam = false; // Track if current input is Malayalam
 
   constructor(apiKey: string) {
     this.ai = new GoogleGenAI({ apiKey });
@@ -55,6 +59,7 @@ export class GeminiLiveService {
       this.currentOutputTranscription = '';
       this.currentInputId = '';
       this.currentOutputId = '';
+      this.currentInputIsMalayalam = false;
 
       // Get User Media
       this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -153,7 +158,15 @@ export class GeminiLiveService {
       // Reset output state so next model speech gets a new bubble
       this.currentOutputTranscription = '';
       this.currentOutputId = '';
+      this.currentInputIsMalayalam = false;
     }
+  }
+
+  // Detect if text contains Malayalam characters
+  private containsMalayalam(text: string): boolean {
+    // Malayalam Unicode range: U+0D00 to U+0D7F
+    const malayalamRegex = /[\u0D00-\u0D7F]/;
+    return malayalamRegex.test(text);
   }
 
   private handleTranscription(message: LiveServerMessage) {
@@ -165,6 +178,12 @@ export class GeminiLiveService {
             this.currentInputId = Date.now().toString() + '-user';
         }
         this.currentInputTranscription += text;
+
+        // Detect language - check if Malayalam is present
+        if (this.containsMalayalam(this.currentInputTranscription)) {
+          this.currentInputIsMalayalam = true;
+        }
+
         this.onTranscription({
           id: this.currentInputId,
           text: this.currentInputTranscription,
@@ -175,14 +194,15 @@ export class GeminiLiveService {
       }
     }
 
-    // Output (Model)
+    // Output (Model) - ONLY show if input was Malayalam
     if (message.serverContent?.outputTranscription) {
       const text = message.serverContent.outputTranscription.text;
-      if (text && text.trim().length > 0) {
+      if (text && text.trim().length > 0 && this.currentInputIsMalayalam) {
         if (!this.currentOutputId) {
             this.currentOutputId = Date.now().toString() + '-model';
         }
         this.currentOutputTranscription += text;
+
         this.onTranscription({
           id: this.currentOutputId,
           text: this.currentOutputTranscription,
@@ -208,8 +228,8 @@ export class GeminiLiveService {
         this.currentInputTranscription = '';
       }
 
-      // Finalize Model Output
-      if (this.currentOutputId) {
+      // Finalize Model Output - ONLY if input was Malayalam
+      if (this.currentOutputId && this.currentInputIsMalayalam) {
         this.onTranscription({
           id: this.currentOutputId,
           text: this.currentOutputTranscription,
@@ -220,6 +240,9 @@ export class GeminiLiveService {
         this.currentOutputId = '';
         this.currentOutputTranscription = '';
       }
+
+      // Reset Malayalam flag for next turn
+      this.currentInputIsMalayalam = false;
     }
   }
 
